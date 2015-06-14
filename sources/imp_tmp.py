@@ -7,10 +7,34 @@ execfile('functions.py')
 ## Reading data
 year = '07'
 path_in = '../data/data_'
-df_in = pd.read_csv(path_in+year+'.dat',delimiter='|')
-
+df_in = pd.read_csv(path_in+year+'_short.dat',delimiter='|')
 df_in['pi'] =  1. * df_in.Q/df_in.VD
+df_in['eta'] = 1. * df_in.Q/df_in.VP
+df_in['dur'] = 1. * df_in.VP/df_in.VD
 df_in['imp'] = 1. * df_in.side * py.log10(df_in.p_e/df_in.p_s) / df_in.sigma
+
+
+###########################
+
+aapl = df_in[df_in.symbol=='AAPL']
+aapl['day_trade'] = aapl.t_s.apply(extract_day)
+all_days = sorted(list(set(aapl.day_trade)))
+aapl['day_trade_n'] = find_pos(aapl.day_trade, all_days)
+aapl['mm_s'] = aapl.t_s.apply(extract_min)
+aapl['mm_e'] = aapl.t_e.apply(extract_min)
+
+
+###########################
+
+
+n_bins_h_pi = 10
+bin_end_h_pi = py.percentile(df_in.pi,list(100.*py.arange(n_bins_h_pi+1.)/(n_bins_h_pi)))
+pdf_pi, bins_pi, patches = py.hist(py.array(df_in.pi), bin_end_h_pi, normed=1, histtype='step')
+bins_pi_cent = (bins_pi[:-1] - bins_pi[1:])/2. + bins_pi[1:]
+
+
+###########################
+
 
 n_bins = 30
 bin_end = py.percentile(df_in.pi,list(100.*py.arange(n_bins+1.)/(n_bins)))
@@ -33,32 +57,16 @@ def ff_lg(x, a, b): return a * py.log10( 1.+b*x )
 par_lg,vv_lg,chi_lg = fit_nonlin_1d_2p(ff_lg,df_out,ar_lg,br_lg)
 
 
-# plotting
-x_plf = pow(10,py.linspace(-6,0,1000))
+###########################
 
-# distance between axes and ticks
-py.rcParams['xtick.major.pad']='8'
-py.rcParams['ytick.major.pad']='8'
 
-# set latex font
-py.rc('text', usetex=True)
-py.rc('font', **{'family': 'serif', 'serif': ['Computer Modern'], 'size': 20})
 
-py.clf()
-p_pl, = py.plot(x_plf,ff_pl(x_plf,par_pl[0],par_pl[1]), ls='--', color='Red')
-p_lg, = py.plot(x_plf,ff_lg(x_plf,par_lg[0],par_lg[1]), ls='-', color='RoyalBlue')
-p_points, = py.plot(df_out.pi,df_out.imp,'.', color='Black',ms=10)
-py.xscale('log')
-py.yscale('log')
-py.xlabel('$\phi$')
-py.ylabel('$\mathcal{I}_{tmp}(\Omega=\{ \phi \})$')
-py.grid()
-py.axis([0.00001,1,0.0001,0.1])
-leg_1 = '$\hat{Y} = $' + str("%.4f" % round(par_pl[0],4)) + '$\pm$' + str("%.4f" % round(vv_pl[0][0],4)) + ' $\hat{\delta} = $' + str("%.4f" % round(par_pl[1],4)) + '$\pm$' + str("%.4f" % round(vv_pl[1][1],4)) + ' $E_{RMS} = $' + str("%.4f" % round(py.sqrt(chi_pl/len(df_out.imp)),4))
-leg_2 = '$\hat{a} = $' + str("%.3f" % round(par_lg[0],3)) + '$\pm$' + str("%.3f" % round(vv_lg[0][0],3)) + ' $\hat{b} = $' + str("%.0f" % round(par_lg[1],3)) + '$\pm$' + str("%.0f" % round(vv_lg[1][1],3)) + ' $E_{RMS} = $' + str("%.4f" % round(py.sqrt(chi_lg/len(df_out.imp)),4))
-l1 = py.legend([p_pl,p_lg], ['$f(\phi) = Y\phi^{\delta}$', '$g(\phi)= a \log_{10}(1+b\phi)$'], loc=2, prop={'size':15})
-l2 = py.legend([p_pl,p_lg], [leg_1 ,leg_2 ], loc=4, prop={'size':15})
-py.gca().add_artist(l1)
-py.subplots_adjust(bottom=0.15)
-py.subplots_adjust(left=0.17)
-py.savefig("../plot/imp_1d.pdf")
+
+
+
+
+execfile('plotting.py')
+
+
+
+

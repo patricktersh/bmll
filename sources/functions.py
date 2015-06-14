@@ -1,3 +1,17 @@
+
+def extract_day( str_in ):
+    return str_in[0:10]
+
+def extract_min( str_in ):
+    h = int(str_in[11:13])
+    m = int(str_in[14:16])
+    return h*60+m-569
+
+def find_pos(  list_1, list_2 ):
+    return map(lambda x:list_2.index(x), list_1)
+
+
+
 def fit_nonlin_1d_2p(ff_in, df_in, a_r, b_r):
     par = []
     vv = []
