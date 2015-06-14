@@ -4,9 +4,6 @@ import pandas as pd
 
 execfile('functions.py')
 
-n_bins = 30
-bin_end = py.percentile(pi,list(100.*py.arange(n_bins+1.)/(n_bins)))
-
 ## Reading data
 year = '07'
 path_in = '../data/data_'
@@ -14,8 +11,12 @@ df_in = pd.read_csv(path_in+year+'.dat',delimiter='|')
 
 df_in['pi'] =  1. * df_in.Q/df_in.VD
 df_in['imp'] = 1. * df_in.side * py.log10(df_in.p_e/df_in.p_s) / df_in.sigma
+
+n_bins = 30
+bin_end = py.percentile(df_in.pi,list(100.*py.arange(n_bins+1.)/(n_bins)))
+bin_end[len(bin_end)-1] = bin_end[len(bin_end)-1] + 0.00001
 df_in['fac'] = py.digitize(df_in.pi,bin_end)
-df_gp = df_in[['pi','imp','fac']].groupby('fac')
+df_gp = df_in[['pi','imp','fac']].groupby('fac')	
 df_out = pd.concat([df_gp.mean(),df_gp.std().imp,df_gp.count().imp], axis=1)
 df_out.columns = ['pi','imp','stdd','nn']
 
@@ -52,10 +53,9 @@ py.yscale('log')
 py.xlabel('$\phi$')
 py.ylabel('$\mathcal{I}_{tmp}(\Omega=\{ \phi \})$')
 py.grid()
-#pylab.errorbar(xx, yy, yerr=err_yy, color='Black', ls='')
 py.axis([0.00001,1,0.0001,0.1])
-leg_1 = '$\hat{Y} = $' + str("%.2f" % round(par_pl[0],2)) + '$\pm$' + str("%.2f" % round(vv_pl[0][0],2)) + ' $\hat{\delta} = $' + str("%.2f" % round(par_pl[1],2)) + '$\pm$' + str("%.2f" % round(vv_pl[1][1],2)) + ' $E_{RMS} = $' + str("%.2f" % round(py.sqrt(chi_pl/len(df_out.imp)),2))
-leg_2 = '$\hat{a} = $' + str("%.3f" % round(par_lg[0],3)) + '$\pm$' + str("%.3f" % round(vv_lg[0][0],3)) + ' $\hat{b} = $' + str("%.0f" % round(par_lg[1],2)) + '$\pm$' + str("%.0f" % round(vv_lg[1][1],2)) + ' $E_{RMS} = $' + str("%.2f" % round(py.sqrt(chi_lg/len(df_out.imp)),2))
+leg_1 = '$\hat{Y} = $' + str("%.4f" % round(par_pl[0],4)) + '$\pm$' + str("%.4f" % round(vv_pl[0][0],4)) + ' $\hat{\delta} = $' + str("%.4f" % round(par_pl[1],4)) + '$\pm$' + str("%.4f" % round(vv_pl[1][1],4)) + ' $E_{RMS} = $' + str("%.4f" % round(py.sqrt(chi_pl/len(df_out.imp)),4))
+leg_2 = '$\hat{a} = $' + str("%.3f" % round(par_lg[0],3)) + '$\pm$' + str("%.3f" % round(vv_lg[0][0],3)) + ' $\hat{b} = $' + str("%.0f" % round(par_lg[1],3)) + '$\pm$' + str("%.0f" % round(vv_lg[1][1],3)) + ' $E_{RMS} = $' + str("%.4f" % round(py.sqrt(chi_lg/len(df_out.imp)),4))
 l1 = py.legend([p_pl,p_lg], ['$f(\phi) = Y\phi^{\delta}$', '$g(\phi)= a \log_{10}(1+b\phi)$'], loc=2, prop={'size':15})
 l2 = py.legend([p_pl,p_lg], [leg_1 ,leg_2 ], loc=4, prop={'size':15})
 py.gca().add_artist(l1)
