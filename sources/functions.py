@@ -30,3 +30,5 @@ def fit_nonlin_1d_2p(ff_in, df_in, a_r, b_r):
     par_opt = par[ind_min]
     vv_opt = vv[ind_min]
     return par_opt, vv_opt, chi_opt
+
+parse = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
