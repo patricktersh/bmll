@@ -124,29 +124,31 @@ class Filters():
 
 class Impact2D:
 
-    def __init__(self, n_points = 10 ):
+    def __init__(self):
 
-        self.n_points = n_points
+        self.n_points = 10
         self.data = pd.DataFrame(data = 0.1*pl.ones((self.n_points,4)), columns = ['pi','imp','stdd','nn'])
         self.functions = {'power law': fn.ff_pl, 'logarithm': fn.ff_lg}
         self.parameters = {'power law': [1., 1.], 'logarithm': [1., 1.]}
         self.errors = {'power law': [1., 1.], 'logarithm': [1., 1.]}
         self.chi = {'power law': 1., 'logarithm': 1.}
+        self.filter = Filters()
+
 
     def __str__(self):
        return '[PL: %f, %f] \n[LG: %f, %f]' % (self.parameters['power law'][0], self.parameters['power law'][1], self.parameters['logarithm'][0], self.parameters['logarithm'][1])
 
-    def set_data(self, data_in):
-        self.data = data_in
+    #def set_data(self, data_in):
+        #self.data = data_in
         #self.n_points = len(data_in.pi)
 
     def get_data(self):
         return self.data
 
-    def set_par(self, key_in, data_in):
-        self.parameters[key_in] = data_in[0:2]
-        self.errors[key_in] = data_in[2:4]
-        self.chi[key_in] = data_in[4]
+    #def set_par(self, key_in, data_in):
+        #self.parameters[key_in] = data_in[0:2]
+        #self.errors[key_in] = data_in[2:4]
+        #self.chi[key_in] = data_in[4]
 
     def get_par(self, key_in):
         return self.parameters[key_in]
@@ -198,6 +200,80 @@ class Impact2D:
         pl.subplots_adjust(bottom=0.15)
         pl.subplots_adjust(left=0.17)
         pl.show()
+
+    def calibrate_impact(self, filter, database, n_points):
+
+        self.filter = filter
+        self.n_points = n_points
+
+        filter_symbol = fn.is_in(database.get_symbol(), filter.get_symbol())
+        filter_months = fn.is_in(database.get_ym(), filter.get_ym())
+        filter_t_s_0 = database.get_t_s_mm() > filter.get_t_s_mm()[0]
+        filter_t_s_1 = database.get_t_s_mm() < filter.get_t_s_mm()[1]
+        filter_t_e_0 = database.get_t_e_mm() > filter.get_t_e_mm()[0]
+        filter_t_e_1 = database.get_t_e_mm() < filter.get_t_e_mm()[1]
+        filter_pi_0 = database.get_pi() > filter.get_pi()[0]
+        filter_pi_1 = database.get_pi() < filter.get_pi()[1]
+        filter_eta_0 = database.get_eta() > filter.get_eta()[0]
+        filter_eta_1 = database.get_eta() < filter.get_eta()[1]
+        filter_dur_0 = database.get_dur() > filter.get_dur()[0]
+        filter_dur_1 = database.get_dur() < filter.get_dur()[1]
+
+        filter_all = filter_t_s_0 & filter_t_s_1 & filter_t_e_0 & filter_t_e_1 & filter_pi_0 & filter_pi_1 \
+                     & filter_eta_0 & filter_eta_1 & filter_dur_0 & filter_dur_1 & filter_symbol & filter_months
+
+        # Extracting pi and imp
+        database_fr = database.db.loc[filter_all,['pi','imp']] # probably can be improved with a get method
+
+        # Generating the bin extremes
+        bin_end_imp_pi = pl.percentile(database_fr.pi,list(100.*pl.arange(self.n_points+1.)/(self.n_points)))
+
+        # Adjusting the last bin extreme
+        bin_end_imp_pi[-1] = bin_end_imp_pi[-1] + 0.00001
+
+        # Assigning each point to a bin
+        database_fr['fac_pi'] = pl.digitize(database_fr.pi,bin_end_imp_pi)
+
+        # Using a groupby in order to generate average pi and imp for each bin, assigning the output to df_imp
+        df_gp = database_fr[['pi','imp','fac_pi']].groupby('fac_pi')
+        #df_imp = df_gp.mean()
+        df_imp = pd.concat([df_gp.mean(),df_gp.imp.std(),df_gp.imp.count()], axis=1)
+        df_imp.columns = ['pi','imp','stdd','nn']
+
+        # Setting the data
+        self.data = df_imp
+
+        ar = [0., 0.3] 	# extremes of the grid of the starting points for the non-linear optimisation algorithm
+        br = [0., 1.]	# extremes of the grid of the starting points for the non-linear optimisation algorithm
+        parameters,errors,chi = fn.fit_nonlin_1d_2p(self.functions['power law'],self.data,ar,br)
+        self.parameters['power law'] = parameters
+        self.errors['power law'] = [errors[0][0],errors[1][1]]
+        self.chi['power law'] = chi
+
+        ar = [0., 0.3] 	# extremes of the grid of the starting points for the non-linear optimisation algorithm
+        br = [0., 1.]	# extremes of the grid of the starting points for the non-linear optimisation algorithm
+        parameters,errors,chi = fn.fit_nonlin_1d_2p(self.functions['logarithm'],self.data,ar,br)
+        self.parameters['logarithm'] = parameters
+        self.errors['logarithm'] = [errors[0][0],errors[1][1]]
+        self.chi['logarithm'] = chi
+
+
+
+
+
+
+
+db = AncernoDatabase()
+db.import_dataset()
+
+fil = Filters()
+
+imp = Impact2D()
+imp.calibrate_impact(fil, db, 20)
+
+
+
+
 
 class Calibrator:
 
@@ -264,13 +340,11 @@ class Calibrator:
 
 
 
-db = AncernoDatabase()
-db.import_dataset()
 
-a = Calibrator(n_points=30)
-a.set_database(db)
-a.calibrate()
-a.impact.plot_impact()
+#a = Calibrator(n_points=30)
+#a.set_database(db)
+#a.calibrate()
+#a.impact.plot_impact()
 
 
 
