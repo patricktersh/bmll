@@ -5,18 +5,24 @@ import pandas as pd
 import pylab as pl
 from datetime import datetime
 
+ANCERNO_COL_NAMES = ['symbol', 'side', 'Q', 'VP', 'VD', 'sigma', 't_s', 't_e', 'p_s', 'p_e', 'pi', 'eta', 'dur', 'imp']
 
 class AncernoDatabase():
     def __init__(self):
-        self.ancerno_name_col = ['symbol', 'side', 'Q', 'VP', 'VD', 'sigma', 't_s', 't_e', 'p_s', 'p_e', 'pi', 'eta', 'dur', 'imp']
-        self.db = pd.DataFrame(columns = self.ancerno_name_col)
+        # building an empty pandas dataframe
+        self.db = pd.DataFrame(columns = ANCERNO_COL_NAMES)
 
-    def import_dataset(self):
-        self.db = pd.read_csv('../data_frame/df_07_sel.csv',delimiter=';')
+    def import_dataset_csv(self, name_csv = '../data_frame/test_dataframe.csv'):
+        # importing the data from a csv file
+        self.db = pd.read_csv(name_csv, delimiter=';')
+        # calculating derivate quantities: pi, eta, dur, imp
         self.db['pi'] =  1. * self.db.Q/self.db.VD
         self.db['eta'] = 1. * self.db.Q/self.db.VP
         self.db['dur'] = 1. * self.db.VP/self.db.VD
-        self.db['imp'] = 1. * self.db.side * pl.log10(self.db.p_e/self.db.p_s) / self.db.sigma
+        #self.db['imp'] = 1. * self.db.side * pl.log10(self.db.p_e/self.db.p_s) / self.db.sigma
+        self.db['imp'] = 1. * self.db.side * pl.log(self.db.p_e/self.db.p_s) / self.db.sigma
+
+    #### Methods for getting each single field ####
 
     def get_symbol(self):
         return self.db.symbol
@@ -29,6 +35,9 @@ class AncernoDatabase():
 
     def get_VP(self):
         return self.db.VP
+
+    def get_VD(self):
+        return self.db.VD
 
     def get_sigma(self):
         return self.db.sigma
@@ -45,26 +54,17 @@ class AncernoDatabase():
     def get_p_e(self):
         return self.db.p_e
 
+    def get_pi(self):
+        return self.db.pi
+
     def get_eta(self):
         return self.db.eta
 
     def get_dur(self):
         return self.db.dur
 
-    def get_pi(self):
-        return self.db.pi
-
-    def get_ym(self):
-        return self.db.t_s.apply(fn.extract_ym)
-
-    def get_t_s_mm(self):
-        return self.db.t_s.apply(fn.extract_min)
-
-    def get_t_s_mm_2(self):
-        return map(fn.extract_min,self.db.t_s.tolist())
-
-    def get_t_e_mm(self):
-        return self.db.t_e.apply(fn.extract_min)
+    def get_imp(self):
+        return self.db.imp
 
 
 
@@ -79,76 +79,62 @@ class Filters():
                  pi = [0.,1.], \
                  eta = [0.,1.], \
                  dur = [0.,1.]):
-        self.symbols = symbols
-        self.months = months
+        self.symbols_list = symbols
+        self.months_list = months
         self.extremes = {'t_s': t_s, \
                          't_e': t_e, \
                          'pi' : pi, \
                          'eta': eta, \
                          'dur': dur}
+    def __str__(self):
+        return 'Filter \nsymbols : %s \nmonths  : %s \nt_s: %s \nt_e: %s \npi : %s \neta: %s \ndur: %s \n' % \
+               (self.symbols_list, self.months_list, self.extremes['t_s'], self.extremes['t_e'], \
+                self.extremes['pi'], self.extremes['eta'], self.extremes['dur'])
 
-    def get_symbol(self):
-        return self.symbols
+    #### Methods for setting each single field ####
 
-    def get_ym(self):
-        return self.months
+    def set_symbols(self, list_in):
+        self.symbols_list = list_in
 
-    def get_t_s_mm(self):
-        return map(fn.extract_min_short,self.extremes['t_s'])
+    def set_months(self, list_in):
+        self.months_list = list_in
 
-    def get_t_e_mm(self):
-        return map(fn.extract_min_short,self.extremes['t_e'])
+    def set_t_s(self, list_in):
+        self.extremes['t_s'] = list_in
 
-    def get_pi(self):
-        return self.extremes['pi']
+    def set_t_e(self, list_in):
+        self.extremes['t_e'] = list_in
 
-    def get_eta(self):
-        return self.extremes['eta']
+    def set_pi(self, list_in):
+        self.extremes['pi'] = list_in
 
-    def get_dur(self):
-        return self.extremes['dur']
+    def set_eta(self, list_in):
+        self.extremes['eta'] = list_in
 
+    def set_dur(self, list_in):
+        self.extremes['dur'] = list_in
 
-
-
-
-#class Database2D():
-#    def __init__(self, db_info=None):
-#        self.db = pd.DataFrame(data = pl.ones((100,2)), columns = ['pi','imp'])
-#        self.db_info = db_info or DatabaseInfo()
-
-
-
-#a = Database2D()
-#print a.db_info.months
 
 class Impact2D:
 
     def __init__(self):
-
-        self.n_points = 10
-        self.data = pd.DataFrame(data = 0.1*pl.ones((self.n_points,4)), columns = ['pi','imp','stdd','nn'])
+        self.n_bins = 10
+        self.data = pd.DataFrame(data = 0.1*pl.ones((self.n_bins,4)), columns = ['pi','imp','stdd','nn'])
         self.functions = {'power law': fn.ff_pl, 'logarithm': fn.ff_lg}
         self.parameters = {'power law': [1., 1.], 'logarithm': [1., 1.]}
         self.errors = {'power law': [1., 1.], 'logarithm': [1., 1.]}
         self.chi = {'power law': 1., 'logarithm': 1.}
         self.filter = Filters()
 
-
     def __str__(self):
-       return '[PL: %f, %f] \n[LG: %f, %f]' % (self.parameters['power law'][0], self.parameters['power law'][1], self.parameters['logarithm'][0], self.parameters['logarithm'][1])
-
-    #def set_data(self, data_in):
-        #self.data = data_in
-        #self.n_points = len(data_in.pi)
+       return 'Power Law \nImp(Q/V) = Y*(Q/V)^delta\nY = %f, delta = %f \nchi = %f\n\nLogarithm \nImp(Q/V) = a*log[1+b*(Q/V)]\na = %f, b = %f\nchi = %f'  \
+              % (self.parameters['power law'][0], self.parameters['power law'][1],self.chi['power law'],self.parameters['logarithm'][0], self.parameters['logarithm'][1],self.chi['logarithm'])
 
     def get_data(self):
         return self.data
 
-    #def set_par(self, key_in, data_in):
-        #self.parameters[key_in] = data_in[0:2]
-        #self.errors[key_in] = data_in[2:4]
-        #self.chi[key_in] = data_in[4]
+    def get_fun(self, key_in):
+        return self.functions[key_in]
 
     def get_par(self, key_in):
         return self.parameters[key_in]
@@ -158,6 +144,92 @@ class Impact2D:
 
     def get_chi(self, key_in):
         return self.chi[key_in]
+
+    def set_filter(self, filter):
+        self.filter = filter
+
+    def calibrate_impact(self, database, n_bins):
+
+        self.n_bins = n_bins
+
+        #### Applying filter ####
+
+        # filter_symbol: the traded stock must be in the filter list
+        filter_symbol = fn.is_in(database.get_symbol(), self.filter.symbols_list)
+
+        # filter_month: the day of the execution must be in the filter list, the format of the list is YYYY-MM
+        tmp_0 = database.get_t_s()
+        tmp_1 = tmp_0.apply(fn.extract_ym)
+        filter_month = fn.is_in(tmp_1, self.filter.months_list)
+
+        # filter_t_s: the starting time of the execution must be within the filter extremes
+        tmp_0 = database.get_t_s()
+        tmp_1 = tmp_0.apply(fn.extract_min)
+        tmp_2 = map(fn.extract_min_short,self.filter.extremes['t_s'])
+        filter_t_s_0 = tmp_1 > tmp_2[0]
+        filter_t_s_1 = tmp_1 < tmp_2[1]
+
+        # filter_t_e: the ending time of the execution must be within the filter extremes
+        tmp_0 = database.get_t_e()
+        tmp_1 = tmp_0.apply(fn.extract_min)
+        filter_t_e_0 = tmp_1 > fn.extract_min_short(self.filter.extremes['t_e'][0])
+        filter_t_e_1 = tmp_1 < fn.extract_min_short(self.filter.extremes['t_e'][1])
+
+        # filter_pi: the daily fraction must be within the filter extremes
+        filter_pi_0 = database.get_pi() > self.filter.extremes['pi'][0]
+        filter_pi_1 = database.get_pi() < self.filter.extremes['pi'][1]
+
+        # filter_eta: the participation rate must be within the filter extremes
+        filter_eta_0 = database.get_eta() > self.filter.extremes['eta'][0]
+        filter_eta_1 = database.get_eta() < self.filter.extremes['eta'][1]
+
+        # filter_dur: the duration must be within the filter extremes
+        filter_dur_0 = database.get_dur() > self.filter.extremes['dur'][0]
+        filter_dur_1 = database.get_dur() < self.filter.extremes['dur'][1]
+
+        # applying all filters
+        filter_all = filter_t_s_0 & filter_t_s_1 & filter_t_e_0 & filter_t_e_1 & filter_pi_0 & filter_pi_1 \
+                     & filter_eta_0 & filter_eta_1 & filter_dur_0 & filter_dur_1 & filter_symbol & filter_month
+        database_filtered = database.db.loc[filter_all,:]
+
+        #### Generating binned data ####
+
+        # Extracting pi and imp
+        database_reduced = database_filtered.loc[:,['pi','imp']]
+
+        # Generating the bin extremes
+        bin_end_imp_pi = pl.percentile(database_reduced.pi,list(100.*pl.arange(self.n_bins+1.)/(self.n_bins)))
+
+        # Adjusting the last bin extreme
+        bin_end_imp_pi[-1] = bin_end_imp_pi[-1] + 0.00001
+
+        # Assigning each point to a bin
+        database_reduced['fac_pi'] = pl.digitize(database_reduced.pi,bin_end_imp_pi)
+
+        # Using a groupby in order to generate average pi and imp for each bin, assigning the output to df_imp
+        df_gp = database_reduced[['pi','imp','fac_pi']].groupby('fac_pi')
+        #df_imp = df_gp.mean()
+        df_imp = pd.concat([df_gp.mean(),df_gp.imp.std(),df_gp.imp.count()], axis=1)
+        df_imp.columns = ['pi','imp','stdd','nn']
+
+        # Setting the data
+        self.data = df_imp
+
+        #### Estimating parameters ####
+
+        ar = [0., 0.3] 	# extremes of the grid of the starting points for the non-linear optimisation algorithm
+        br = [0., 1.]	# extremes of the grid of the starting points for the non-linear optimisation algorithm
+        parameters,errors,chi = fn.fit_nonlin_1d_2p(self.functions['power law'],self.data,ar,br)
+        self.parameters['power law'] = parameters
+        self.errors['power law'] = [errors[0][0],errors[1][1]]
+        self.chi['power law'] = chi
+
+        ar = [0., 0.3] 	# extremes of the grid of the starting points for the non-linear optimisation algorithm
+        br = [0., 1.]	# extremes of the grid of the starting points for the non-linear optimisation algorithm
+        parameters,errors,chi = fn.fit_nonlin_1d_2p(self.functions['logarithm'],self.data,ar,br)
+        self.parameters['logarithm'] = parameters
+        self.errors['logarithm'] = [errors[0][0],errors[1][1]]
+        self.chi['logarithm'] = chi
 
     def plot_impact(self):
 
@@ -187,12 +259,12 @@ class Impact2D:
 
         l_00 = '$\hat{Y} = $' + str("%.4f" % round(self.get_par('power law')[0],4)) + '$\pm$' + str("%.4f" % round(self.get_err('power law')[0],4))
         l_01 = '$\hat{\delta} = $' + str("%.4f" % round(self.get_par('power law')[1],4)) + '$\pm$' + str("%.4f" % round(self.get_err('power law')[1],4))
-        l_02 = '$E_{RMS} = $' + str("%.4f" % round(pl.sqrt(self.get_chi('power law')/self.n_points),4))
+        l_02 = '$E_{RMS} = $' + str("%.4f" % round(pl.sqrt(self.get_chi('power law')/self.n_bins),4))
         leg_0 = l_00 + " " + l_01 + " " + l_02
 
         l_10 = '$\hat{a} = $' + str("%.4f" % round(self.get_par('logarithm')[0],4)) + '$\pm$' + str("%.4f" % round(self.get_err('logarithm')[0],4))
         l_11 = '$\hat{b} = $' + str("%.4f" % round(self.get_par('logarithm')[1],4)) + '$\pm$' + str("%.4f" % round(self.get_err('logarithm')[1],4))
-        l_12 = '$E_{RMS} = $' + str("%.4f" % round(pl.sqrt(self.get_chi('logarithm')/self.n_points),4))
+        l_12 = '$E_{RMS} = $' + str("%.4f" % round(pl.sqrt(self.get_chi('logarithm')/self.n_bins),4))
         leg_1 = l_10 + " " + l_11 + " " + l_12
         l1 = pl.legend([p_pl,p_lg], ['$f(\phi) = Y\phi^{\delta}$', '$g(\phi)= a \log_{10}(1+b\phi)$'], loc=2, prop={'size':15})
         l2 = pl.legend([p_pl,p_lg], [leg_0 ,leg_1 ], loc=4, prop={'size':15})
@@ -201,61 +273,59 @@ class Impact2D:
         pl.subplots_adjust(left=0.17)
         pl.show()
 
-    def calibrate_impact(self, filter, database, n_points):
 
-        self.filter = filter
-        self.n_points = n_points
+class Order:
 
-        filter_symbol = fn.is_in(database.get_symbol(), filter.get_symbol())
-        filter_months = fn.is_in(database.get_ym(), filter.get_ym())
-        filter_t_s_0 = database.get_t_s_mm() > filter.get_t_s_mm()[0]
-        filter_t_s_1 = database.get_t_s_mm() < filter.get_t_s_mm()[1]
-        filter_t_e_0 = database.get_t_e_mm() > filter.get_t_e_mm()[0]
-        filter_t_e_1 = database.get_t_e_mm() < filter.get_t_e_mm()[1]
-        filter_pi_0 = database.get_pi() > filter.get_pi()[0]
-        filter_pi_1 = database.get_pi() < filter.get_pi()[1]
-        filter_eta_0 = database.get_eta() > filter.get_eta()[0]
-        filter_eta_1 = database.get_eta() < filter.get_eta()[1]
-        filter_dur_0 = database.get_dur() > filter.get_dur()[0]
-        filter_dur_1 = database.get_dur() < filter.get_dur()[1]
+    def __init__(self, symbol = None, day = None, quantity = None):
+        self.symbol = symbol or 'AAPL'
+        self.day = day or '2010-02-01'
+        self.quantity = quantity or 1000.
+        self.volatility_est = 0.01
+        self.volume_est = 100000.
+        self.impact_exp = 0.
+        self.impact_model = 'power law'
 
-        filter_all = filter_t_s_0 & filter_t_s_1 & filter_t_e_0 & filter_t_e_1 & filter_pi_0 & filter_pi_1 \
-                     & filter_eta_0 & filter_eta_1 & filter_dur_0 & filter_dur_1 & filter_symbol & filter_months
+    def __str__(self):
 
-        # Extracting pi and imp
-        database_fr = database.db.loc[filter_all,['pi','imp']] # probably can be improved with a get method
+        sep = '\n----------\n'
+        p_0 = 'ORDER:'
+        p_1 = 'Symbol: %s\nDay: %s\nQuantity: %s' \
+               % (self.symbol, self.day, self.quantity)
+        p_2 = 'Estimated Volume: %f\nEstimated Volatility: %f' % (self.volume_est,self.volatility_est)
+        p_3 = 'Impact Model: %s\nPredicted Impact (bp): %f' % (self.impact_model,self.impact_exp)
 
-        # Generating the bin extremes
-        bin_end_imp_pi = pl.percentile(database_fr.pi,list(100.*pl.arange(self.n_points+1.)/(self.n_points)))
+        return p_0 + sep + p_1 + sep + p_2 + sep + p_3 + sep
 
-        # Adjusting the last bin extreme
-        bin_end_imp_pi[-1] = bin_end_imp_pi[-1] + 0.00001
+    def estimate_vol_vol(self):
 
-        # Assigning each point to a bin
-        database_fr['fac_pi'] = pl.digitize(database_fr.pi,bin_end_imp_pi)
+        # dummy time series: must be replaced by a reader from an external source
+        rng = pd.date_range(start = '2010-01-01', end = '2011-01-01', freq='D')
+        tmp_0 = 100000. + 10000.*pl.randn(len(rng))
+        ts_volume = pd.Series(tmp_0, index=rng)
+        tmp_1 = 0.02 + 0.002*pl.randn(len(rng))
+        ts_volatility = pd.Series(tmp_1, index=rng)
 
-        # Using a groupby in order to generate average pi and imp for each bin, assigning the output to df_imp
-        df_gp = database_fr[['pi','imp','fac_pi']].groupby('fac_pi')
-        #df_imp = df_gp.mean()
-        df_imp = pd.concat([df_gp.mean(),df_gp.imp.std(),df_gp.imp.count()], axis=1)
-        df_imp.columns = ['pi','imp','stdd','nn']
+        # estimation of the daily volume and of the daily volatility as a flat average of the previuos n_days_mav
+        n_days_mav = 10
+        period_start = pd.to_datetime('2010-03-01') + pd.DateOffset(days=-(n_days_mav+1))
+        period_end = pd.to_datetime('2010-03-01') + pd.DateOffset(days=-1)
+        self.volume_est = ts_volume[period_start:period_end].mean()
+        self.volatility_est = ts_volatility[period_start:period_end].mean()
 
-        # Setting the data
-        self.data = df_imp
 
-        ar = [0., 0.3] 	# extremes of the grid of the starting points for the non-linear optimisation algorithm
-        br = [0., 1.]	# extremes of the grid of the starting points for the non-linear optimisation algorithm
-        parameters,errors,chi = fn.fit_nonlin_1d_2p(self.functions['power law'],self.data,ar,br)
-        self.parameters['power law'] = parameters
-        self.errors['power law'] = [errors[0][0],errors[1][1]]
-        self.chi['power law'] = chi
+    def calculate_impact_2d(self, impact_2d = None, impact_model = None):
+        impact_2d = impact_2d or Impact2D()
+        self.impact_model = impact_model or 'power law'
+        par = impact_2d.get_par(impact_model)
+        fn = impact_2d.get_fun(impact_model)
+        self.impact_exp = (pl.exp(self.volatility_est * fn(self.quantity/self.volume_est,par[0],par[1]))-1.)*10000.
 
-        ar = [0., 0.3] 	# extremes of the grid of the starting points for the non-linear optimisation algorithm
-        br = [0., 1.]	# extremes of the grid of the starting points for the non-linear optimisation algorithm
-        parameters,errors,chi = fn.fit_nonlin_1d_2p(self.functions['logarithm'],self.data,ar,br)
-        self.parameters['logarithm'] = parameters
-        self.errors['logarithm'] = [errors[0][0],errors[1][1]]
-        self.chi['logarithm'] = chi
+
+
+a = Order()
+a.estimate_vol_vol()
+a.calculate_impact_2d(impact_model = 'power law')
+print(a)
 
 
 
@@ -263,92 +333,26 @@ class Impact2D:
 
 
 
-db = AncernoDatabase()
-db.import_dataset()
-
-fil = Filters()
-
-imp = Impact2D()
-imp.calibrate_impact(fil, db, 20)
+#class Database2D():
+#    def __init__(self, db_info=None):
+#        self.db = pd.DataFrame(data = pl.ones((100,2)), columns = ['pi','imp'])
+#        self.db_info = db_info or DatabaseInfo()
 
 
 
+#a = Impact2D()
+#print(a)
 
+if False:
+    db = AncernoDatabase()
+    db.import_dataset_csv('../data_frame/test_impact.csv')
 
-class Calibrator:
+    fil = Filters()
 
-    def __init__(self, ancerno_database = None, filters = None, n_points = 10):
-        self.database = ancerno_database or AncernoDatabase()
-        self.filter = filters or Filters()
-        self.n_points = n_points
-        self.impact = Impact2D(n_points = self.n_points)
+    imp = Impact2D()
+    imp. set_filter(fil)
+    imp.calibrate_impact(db, 20)
+    print(imp)
 
-    def set_database(self, ancerno_database):
-        self.database = ancerno_database
-
-    def set_filters(self, filters):
-        self.filter = filters
-
-    def set_n_points(self, n_points):
-        self.n_points = n_points
-        self.impact = Impact2D(n_points = self.n_points)
-
-
-    def calibrate(self):
-
-        # Filtering database with respect to the parameters set in Filters
-        filter_symbol = fn.is_in(self.database.get_symbol(), self.filter.get_symbol())
-        filter_months = fn.is_in(self.database.get_ym(), self.filter.get_ym())
-        filter_t_s_0 = self.database.get_t_s_mm() > self.filter.get_t_s_mm()[0]
-        filter_t_s_1 = self.database.get_t_s_mm() < self.filter.get_t_s_mm()[1]
-        filter_t_e_0 = self.database.get_t_e_mm() > self.filter.get_t_e_mm()[0]
-        filter_t_e_1 = self.database.get_t_e_mm() < self.filter.get_t_e_mm()[1]
-        filter_pi_0 = self.database.get_pi() > self.filter.get_pi()[0]
-        filter_pi_1 = self.database.get_pi() < self.filter.get_pi()[1]
-        filter_eta_0 = self.database.get_eta() > self.filter.get_eta()[0]
-        filter_eta_1 = self.database.get_eta() < self.filter.get_eta()[1]
-        filter_dur_0 = self.database.get_dur() > self.filter.get_dur()[0]
-        filter_dur_1 = self.database.get_dur() < self.filter.get_dur()[1]
-
-        filter_all = filter_t_s_0 & filter_t_s_1 & filter_t_e_0 & filter_t_e_1 & filter_pi_0 & filter_pi_1 \
-                     & filter_eta_0 & filter_eta_1 & filter_dur_0 & filter_dur_1 & filter_symbol & filter_months
-
-        # Extracting pi and imp
-        database_fr = self.database.db.loc[filter_all,['pi','imp'] ]
-
-        # Generating the bin extremes
-        bin_end_imp_pi = pl.percentile(database_fr.pi,list(100.*pl.arange(self.n_points+1.)/(self.n_points)))
-
-        # Adjusting the last bin extreme
-        bin_end_imp_pi[-1] = bin_end_imp_pi[-1] + 0.00001
-
-        # Assigning each point to a bin
-        database_fr['fac_pi'] = pl.digitize(database_fr.pi,bin_end_imp_pi)
-
-        # Using a groupby in order to generate average pi and imp for each bin, assigning the output to df_imp
-        df_gp = database_fr[['pi','imp','fac_pi']].groupby('fac_pi')
-        df_imp = df_gp.mean()
-
-        # Putting the output to Impact2D
-        self.impact.set_data(df_imp)
-
-
-
-
-
-
-
-
-
-
-#a = Calibrator(n_points=30)
-#a.set_database(db)
-#a.calibrate()
-#a.impact.plot_impact()
-
-
-
-#a.plot_impact()
-#a = ImpactStructure2D()
 
 
