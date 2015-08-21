@@ -7,69 +7,9 @@ from datetime import datetime
 
 ANCERNO_COL_NAMES = ['symbol', 'side', 'Q', 'VP', 'VD', 'sigma', 't_s', 't_e', 'p_s', 'p_e', 'pi', 'eta', 'dur', 'imp']
 
-class AncernoDatabase():
-    def __init__(self):
-        # building an empty pandas dataframe
-        self.db = pd.DataFrame(columns = ANCERNO_COL_NAMES)
-
-    def import_dataset_csv(self, name_csv = '../data_frame/test_dataframe.csv'):
-        # importing the data from a csv file
-        self.db = pd.read_csv(name_csv, delimiter=';')
-        # calculating derivate quantities: pi, eta, dur, imp
-        self.db['pi'] =  1. * self.db.Q/self.db.VD
-        self.db['eta'] = 1. * self.db.Q/self.db.VP
-        self.db['dur'] = 1. * self.db.VP/self.db.VD
-        #self.db['imp'] = 1. * self.db.side * pl.log10(self.db.p_e/self.db.p_s) / self.db.sigma
-        self.db['imp'] = 1. * self.db.side * pl.log(self.db.p_e/self.db.p_s) / self.db.sigma
-
-    #### Methods for getting each single field ####
-
-    def get_symbol(self):
-        return self.db.symbol
-
-    def get_side(self):
-        return self.db.side
-
-    def get_Q(self):
-        return self.db.Q
-
-    def get_VP(self):
-        return self.db.VP
-
-    def get_VD(self):
-        return self.db.VD
-
-    def get_sigma(self):
-        return self.db.sigma
-
-    def get_t_s(self):
-        return self.db.t_s
-
-    def get_t_e(self):
-        return self.db.t_e
-
-    def get_p_s(self):
-        return self.db.p_s
-
-    def get_p_e(self):
-        return self.db.p_e
-
-    def get_pi(self):
-        return self.db.pi
-
-    def get_eta(self):
-        return self.db.eta
-
-    def get_dur(self):
-        return self.db.dur
-
-    def get_imp(self):
-        return self.db.imp
 
 
-
-
-class Filters():
+class Filter():
     def __init__(self, \
                  symbols = ['AIG', 'BAC', 'C', 'CSCO', 'GE', 'JPM', 'MRK', 'MSFT', 'PG', 'XOM'], \
                  months = ['2007-01', '2007-02', '2007-03', '2007-04', '2007-05', '2007-06', \
@@ -99,20 +39,230 @@ class Filters():
     def set_months(self, list_in):
         self.months_list = list_in
 
-    def set_t_s(self, list_in):
-        self.extremes['t_s'] = list_in
+    def set_t_s_min(self, v_in):
+        self.extremes['t_s'][0] = v_in
 
-    def set_t_e(self, list_in):
-        self.extremes['t_e'] = list_in
+    def set_t_s_max(self, v_in):
+        self.extremes['t_s'][1] = v_in
 
-    def set_pi(self, list_in):
-        self.extremes['pi'] = list_in
+    def set_t_e_min(self, v_in):
+        self.extremes['t_e'][0] = v_in
 
-    def set_eta(self, list_in):
-        self.extremes['eta'] = list_in
+    def set_t_e_max(self, v_in):
+        self.extremes['t_e'][1] = v_in
 
-    def set_dur(self, list_in):
-        self.extremes['dur'] = list_in
+    def set_pi_min(self, v_in):
+        self.extremes['pi'][0] = v_in
+
+    def set_pi_max(self, v_in):
+        self.extremes['pi'][1] = v_in
+
+    def set_eta_min(self, v_in):
+        self.extremes['eta'][0] = v_in
+
+    def set_eta_max(self, v_in):
+        self.extremes['eta'][1] = v_in
+
+    def set_dur_min(self, v_in):
+        self.extremes['dur'][0] = v_in
+
+    def set_dur_max(self, v_in):
+        self.extremes['dur'][1] = v_in
+
+
+class BinnedData2D:
+
+    def __init__(self, n_bins = 10):
+        self.n_bins = n_bins
+        self.source = ""
+        self.filter = Filter()
+        self.data = pd.DataFrame(data = pl.ones((self.n_bins,4)), columns = ['pi','imp','stdd','nn'])
+
+    def get_n_bins(self):
+        return self.n_bins
+
+    def get_source(self):
+        return self.source
+
+    def get_filter(self):
+        return self.filter
+
+    def get_data(self):
+        return self.data
+
+
+class AncernoDatabase():
+
+    def __init__(self, filter = None):
+
+        self.source = ""
+        # building an empty pandas dataframe
+        self.db_raw = pd.DataFrame(columns = ANCERNO_COL_NAMES)
+        self.db_fil = self.db_raw
+        self.filter = filter or Filter()
+
+    def import_dataset_csv(self, name_csv = '../data_frame/test_dataframe.csv'):
+        self.source = name_csv
+        # importing the data from a csv file
+        self.db_raw = pd.read_csv(name_csv, delimiter=';')
+        # calculating derivate quantities: pi, eta, dur, imp
+        self.db_raw['pi'] =  1. * self.db_raw.Q/self.db_raw.VD
+        self.db_raw['eta'] = 1. * self.db_raw.Q/self.db_raw.VP
+        self.db_raw['dur'] = 1. * self.db_raw.VP/self.db_raw.VD
+        #self.db['imp'] = 1. * self.db.side * pl.log10(self.db.p_e/self.db.p_s) / self.db.sigma
+        self.db_raw['imp'] = 1. * self.db_raw.side * pl.log(self.db_raw.p_e/self.db_raw.p_s) / self.db_raw.sigma
+
+    #### Methods for getting each single field ####
+
+    def get_symbol(self):
+        return self.db_fil.symbol
+
+    def get_side(self):
+        return self.db_fil.side
+
+    def get_Q(self):
+        return self.db_fil.Q
+
+    def get_VP(self):
+        return self.db_fil.VP
+
+    def get_VD(self):
+        return self.db_fil.VD
+
+    def get_sigma(self):
+        return self.db_fil.sigma
+
+    def get_t_s(self):
+        return self.db_fil.t_s
+
+    def get_t_e(self):
+        return self.db_fil.t_e
+
+    def get_p_s(self):
+        return self.db_fil.p_s
+
+    def get_p_e(self):
+        return self.db_fil.p_e
+
+    def get_pi(self):
+        return self.db_fil.pi
+
+    def get_eta(self):
+        return self.db_fil.eta
+
+    def get_dur(self):
+        return self.db_fil.dur
+
+    def get_imp(self):
+        return self.db_fil.imp
+
+    #### Method for setting and apply the filter ####
+
+    def get_filter(self):
+        return self.filter
+
+    def apply_filter(self, filter = None):
+
+        self.filter = filter or Filter()
+
+        #### Applying filter ####
+
+        # filter_symbol: the traded stock must be in the filter list
+        filter_symbol = fn.is_in(self.db_raw['symbol'], self.filter.symbols_list)
+
+        # filter_month: the day of the execution must be in the filter list, the format of the list is YYYY-MM
+        tmp_0 = self.db_raw['t_s']
+        tmp_1 = tmp_0.apply(fn.extract_ym)
+        filter_month = fn.is_in(tmp_1, self.filter.months_list)
+
+        # filter_t_s: the starting time of the execution must be within the filter extremes
+        tmp_0 = self.db_raw['t_s']
+        tmp_1 = tmp_0.apply(fn.extract_min)
+        tmp_2 = map(fn.extract_min_short,self.filter.extremes['t_s'])
+        filter_t_s_0 = tmp_1 > tmp_2[0]
+        filter_t_s_1 = tmp_1 < tmp_2[1]
+
+        # filter_t_e: the ending time of the execution must be within the filter extremes
+        tmp_0 = self.db_raw['t_e']
+        tmp_1 = tmp_0.apply(fn.extract_min)
+        filter_t_e_0 = tmp_1 > fn.extract_min_short(self.filter.extremes['t_e'][0])
+        filter_t_e_1 = tmp_1 < fn.extract_min_short(self.filter.extremes['t_e'][1])
+
+        # filter_pi: the daily fraction must be within the filter extremes
+        filter_pi_0 = self.db_raw['pi'] > self.filter.extremes['pi'][0]
+        filter_pi_1 = self.db_raw['pi'] < self.filter.extremes['pi'][1]
+
+        # filter_eta: the participation rate must be within the filter extremes
+        filter_eta_0 = self.db_raw['eta'] > self.filter.extremes['eta'][0]
+        filter_eta_1 = self.db_raw['eta'] < self.filter.extremes['eta'][1]
+
+        # filter_dur: the duration must be within the filter extremes
+        filter_dur_0 = self.db_raw['dur'] > self.filter.extremes['dur'][0]
+        filter_dur_1 = self.db_raw['dur'] < self.filter.extremes['dur'][1]
+
+        # applying all filters
+        filter_all = filter_t_s_0 & filter_t_s_1 & filter_t_e_0 & filter_t_e_1 & filter_pi_0 & filter_pi_1 \
+                     & filter_eta_0 & filter_eta_1 & filter_dur_0 & filter_dur_1 & filter_symbol & filter_month
+        self.db_fil = self.db_raw.loc[filter_all,:]
+
+    def get_binned_data_2d(self, n_bins = 10):
+
+        bd_in = BinnedData2D()
+        bd_in.source = self.source
+        bd_in.filter = self.filter
+        bd_in.n_bins = n_bins
+
+        #### Generating binned data ####
+
+        # Extracting pi and imp
+        database_reduced = self.db_fil.loc[:,['pi','imp']]
+
+        # Generating the bin extremes
+        bin_end_imp_pi = pl.percentile(database_reduced.pi,list(100.*pl.arange(bd_in.n_bins+1.)/(bd_in.n_bins)))
+
+        # Adjusting the last bin extreme
+        bin_end_imp_pi[-1] = bin_end_imp_pi[-1] + 0.00001
+
+        # Assigning each point to a bin
+        database_reduced['fac_pi'] = pl.digitize(database_reduced.pi,bin_end_imp_pi)
+
+        # Using a groupby in order to generate average pi and imp for each bin, assigning the output to df_imp
+        df_gp = database_reduced[['pi','imp','fac_pi']].groupby('fac_pi')
+        #df_imp = df_gp.mean()
+        df_imp = pd.concat([df_gp.mean(),df_gp.imp.std(),df_gp.imp.count()], axis=1)
+        df_imp.columns = ['pi','imp','stdd','nn']
+
+        # Setting the data
+        bd_in.data = df_imp
+
+        return bd_in
+
+if False:
+    # generating a filter that does not filter
+    fil = Filter()
+
+    # creating an empty database
+    db = AncernoDatabase()
+
+    #importing the test dataset from csv
+    db.import_dataset_csv('../data_frame/test_impact.csv')
+
+    # applying the fitler
+    db.apply_filter(fil)
+
+    # getting 2d binned data
+    data = db.get_binned_data_2d(10)
+
+    print(data.get_source())
+    print(data.get_n_bins())
+    print(data.get_filter())
+    print(data.get_data())
+
+
+
+
+
+
 
 
 class Impact2D:
@@ -124,7 +274,7 @@ class Impact2D:
         self.parameters = {'power law': [1., 1.], 'logarithm': [1., 1.]}
         self.errors = {'power law': [1., 1.], 'logarithm': [1., 1.]}
         self.chi = {'power law': 1., 'logarithm': 1.}
-        self.filter = Filters()
+        self.filter = Filter()
 
     def __str__(self):
        return 'Power Law \nImp(Q/V) = Y*(Q/V)^delta\nY = %f, delta = %f \nchi = %f\n\nLogarithm \nImp(Q/V) = a*log[1+b*(Q/V)]\na = %f, b = %f\nchi = %f'  \
@@ -291,7 +441,7 @@ class Order:
         p_0 = 'ORDER:'
         p_1 = 'Symbol: %s\nDay: %s\nQuantity: %s' \
                % (self.symbol, self.day, self.quantity)
-        p_2 = 'Estimated Volume: %f\nEstimated Volatility: %f' % (self.volume_est,self.volatility_est)
+        p_2 = 'Estimated Volume: %f\nEstimated Volatility: %f\nExpected Daily Rate: %f' % (self.volume_est,self.volatility_est, self.quantity/self.volume_est)
         p_3 = 'Impact Model: %s\nPredicted Impact (bp): %f' % (self.impact_model,self.impact_exp)
 
         return p_0 + sep + p_1 + sep + p_2 + sep + p_3 + sep
@@ -321,11 +471,11 @@ class Order:
         self.impact_exp = (pl.exp(self.volatility_est * fn(self.quantity/self.volume_est,par[0],par[1]))-1.)*10000.
 
 
-
-a = Order()
-a.estimate_vol_vol()
-a.calculate_impact_2d(impact_model = 'power law')
-print(a)
+if False:
+    a = Order(symbol='AAPL', day='2010-03-01', quantity=10000)
+    a.estimate_vol_vol()
+    a.calculate_impact_2d(impact_model = 'power law')
+    print(a)
 
 
 
@@ -347,12 +497,19 @@ if False:
     db = AncernoDatabase()
     db.import_dataset_csv('../data_frame/test_impact.csv')
 
-    fil = Filters()
+    fil = Filter()
 
     imp = Impact2D()
     imp. set_filter(fil)
     imp.calibrate_impact(db, 20)
-    print(imp)
+    #imp.plot_impact()
+
+    a = Order(symbol='AAPL', day='2010-03-01', quantity=10000)
+    a.estimate_vol_vol()
+    a.calculate_impact_2d(impact_model = 'power law')
+    print(a)
+
+    #print(imp)
 
 
 

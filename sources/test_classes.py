@@ -8,50 +8,63 @@ import pylab as pl
 class TestAncernoDatabase(unittest.TestCase):
 
     def test_import_dataset_csv(self):
-        a = cl.AncernoDatabase()
-        a.import_dataset_csv('../data_frame/test_dataframe.csv')
-        # some tests on the correct calculation of derivate quantities: pi, eta, dur, imp
-        self.assertEqual(a.get_pi()[0], 1./3.)
-        self.assertEqual(a.get_eta()[0], 1./2.)
-        self.assertEqual(a.get_dur()[0], 2./3.)
-        self.assertEqual(round(a.get_imp()[0],4), 230.2585)
 
-class TestImpact2D(unittest.TestCase):
-
-    def test_calibrate_impact(self):
-
-        # creating an Ancerno database
         db_test = cl.AncernoDatabase()
-        db_test.import_dataset_csv('../data_frame/test_impact.csv')
+        db_test.import_dataset_csv('../data_frame/test_import_database_csv.csv')
+        # some tests on the correct calculation of derivate quantities: pi, eta, dur, imp
+        self.assertEqual(db_test.db_raw['pi'][0], 1./3.)
+        self.assertEqual(db_test.db_raw['eta'][0], 1./2.)
+        self.assertEqual(db_test.db_raw['dur'][0], 2./3.)
+        self.assertEqual(round(db_test.db_raw['imp'][0],4), 230.2585)
 
-        # creating the standard filter
-        fil_test = cl.Filters()
+    def test_apply_filter(self):
+        # Setting a test filter
+        fil_test = cl.Filter()
+        fil_test.set_symbols(['AAPL'])
+        fil_test.set_months(['2007-01'])
+        fil_test.set_t_s_min('08:30:00')
+        fil_test.set_t_s_max('09:30:00')
+        fil_test.set_t_e_min('12:30:00')
+        fil_test.set_t_e_max('13:30:00')
+        fil_test.set_pi_min(0.0001)
+        fil_test.set_pi_max(0.1)
+        fil_test.set_eta_min(0.001)
+        fil_test.set_eta_max(1.)
+        fil_test.set_dur_min(0.09)
+        fil_test.set_dur_max(0.11)
 
-        # creating an impact
-        imp_test = cl.Impact2D()
+        # Reading an Ancerno Dataset
+        db_test = cl.AncernoDatabase()
+        db_test.import_dataset_csv('../data_frame/test_apply_filter_csv.csv')
+        db_test.apply_filter(fil_test)
+        # Import an AncernoDatabase with 107 rows, the applied filter is such that filters out the last 7 rows
+        self.assertEqual(len(db_test.get_symbol()),100)
 
-        # setting the filter to the standard filter
-        imp_test.set_filter(fil_test)
+    def test_get_binned_data_2d(self):
+        # Setting a test filter
+        fil_test = cl.Filter()
+        fil_test.set_symbols(['AAPL'])
+        fil_test.set_months(['2007-01'])
+        fil_test.set_t_s_min('08:30:00')
+        fil_test.set_t_s_max('09:30:00')
+        fil_test.set_t_e_min('12:30:00')
+        fil_test.set_t_e_max('13:30:00')
+        fil_test.set_pi_min(0.0001)
+        fil_test.set_pi_max(0.1)
+        fil_test.set_eta_min(0.001)
+        fil_test.set_eta_max(1.)
+        fil_test.set_dur_min(0.09)
+        fil_test.set_dur_max(0.11)
 
-        # setting the number of bins for calibrating the impact
-        n_bins_test = 20
-
-        # calibrating the impact
-        imp_test.calibrate_impact(db_test,n_bins_test)
-
-        # testing the output of the calibration procedure, i.e. the best fitting parameters
-        self.assertEqual(round(imp_test.get_par('power law')[0],4),0.6341)
-        self.assertEqual(round(imp_test.get_par('power law')[1],4),0.6007)
-        self.assertEqual(round(imp_test.get_par('logarithm')[0],4),0.0409)
-        self.assertEqual(round(imp_test.get_par('logarithm')[1],4),914.2394)
-
-
-
-
-
-
-
-
+        # Reading an Ancerno Dataset
+        db_test = cl.AncernoDatabase()
+        db_test.import_dataset_csv('../data_frame/test_apply_filter_csv.csv')
+        db_test.apply_filter(fil_test)
+        a = db_test.get_binned_data_2d(10)
+        self.assertEqual(a.get_source(),'../data_frame/test_apply_filter_csv.csv')
+        self.assertEqual(a.get_n_bins(),10)
+        self.assertEqual(a.get_filter().extremes['t_s'][0],'08:30:00')
+        self.assertEqual(round(a.get_data().loc[5,'imp'],4),4.3965)
 
 
 
