@@ -32,6 +32,19 @@ def extract_min_short(str_in):
     m = int(str_in[3:5])
     return h*60+m-569
 
+def generate_starting_point(i_in, mat_start_point, n_par, n_step):
+    tmp = []
+    cnt = n_par
+    while cnt > 0:
+        n_col = n_par - cnt
+        n_row = i_in%n_step
+        i_in = i_in/n_step
+        cnt = cnt -1
+        tmp  = tmp + [mat_start_point[n_row,n_col]]
+    return tmp
+
+
+
 
 def fit_nonlin_1d_2p(ff_in, df_in, a_r, b_r):
     par = []

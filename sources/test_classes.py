@@ -66,9 +66,29 @@ class TestAncernoDatabase(unittest.TestCase):
         self.assertEqual(a.get_filter().extremes['t_s'][0],'08:30:00')
         self.assertEqual(round(a.get_data().loc[5,'imp'],4),4.3965)
 
+def f_lin(x,a,b):
+    return a+b*x
 
+class TestImpactModel2D(unittest.TestCase):
 
+    def test_calibrate_model(self):
+        a = cl.BinnedData2D()
+        #'pi','imp','stdd','nn'
+        a.data.pi = pl.linspace(1.,10.,10)
+        tmp = pl.linspace(1.,10.,10)
+        tmp[1] = 1.1
+        tmp[4] = 3.9
+        a.data.imp = tmp
 
+        b = cl.ImpactModel2D(n_parameters=2)
+        b.set_model(f_lin)
+        b.set_extremes([[-5,5],[-5,5]])
+        b.calibrate_model(a)
+        self.assertEqual(round(b.get_parameters()[0],4),-0.4467)
+        self.assertEqual(round(b.get_parameters()[1],4),1.0448)
+        self.assertEqual(round(b.get_errors()[0],4),0.0848)
+        self.assertEqual(round(b.get_errors()[1],4),0.0022)
+        self.assertEqual(round(b.get_chi(),4),1.4541)
 
 if __name__ == '__main__':
     unittest.main()
